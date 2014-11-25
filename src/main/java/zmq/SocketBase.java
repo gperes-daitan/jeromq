@@ -23,7 +23,6 @@ package zmq;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
 import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -164,7 +163,7 @@ public abstract class SocketBase extends Own
     }
 
     public void destroy () {
-        stop_monitor();
+        stop_monitor ();
         assert (destroyed);
     }
 
@@ -180,7 +179,7 @@ public abstract class SocketBase extends Own
         //  'stop' command is sent from the threads that called zmq_term to
         //  the thread owning the socket. This way, blocking call in the
         //  owner thread can be interrupted.
-        send_stop();
+        send_stop ();
 
     }
 
@@ -216,16 +215,16 @@ public abstract class SocketBase extends Own
     {
         //  First, register the pipe so that we can terminate it later on.
 
-        pipe_.set_event_sink(this);
+        pipe_.set_event_sink (this);
         pipes.add (pipe_);
 
         //  Let the derived socket type know about new pipe.
-        xattach_pipe(pipe_, icanhasall_);
+        xattach_pipe (pipe_, icanhasall_);
 
         //  If the socket is already being closed, ask any new pipes to terminate
         //  straight away.
-        if (is_terminating()) {
-            register_term_acks(1);
+        if (is_terminating ()) {
+            register_term_acks (1);
             pipe_.terminate (false);
         }
     }
@@ -242,7 +241,7 @@ public abstract class SocketBase extends Own
 
         //  If the socket type doesn't support the option, pass it to
         //  the generic option parser.
-        options.setsockopt(option_, optval_);
+        options.setsockopt (option_, optval_);
     }
 
     public int getsockopt(int option_) {
@@ -256,14 +255,14 @@ public abstract class SocketBase extends Own
             return rcvmore ? 1 : 0;
         }
         if (option_ == ZMQ.ZMQ_EVENTS) {
-            boolean rc = process_commands(0, false);
+            boolean rc = process_commands (0, false);
             if (!rc && errno.get() == ZError.ETERM)
                 return -1;
             assert (rc);
             int val = 0;
-            if (has_out())
+            if (has_out ())
                 val |= ZMQ.ZMQ_POLLOUT;
-            if (has_in())
+            if (has_in ())
                 val |= ZMQ.ZMQ_POLLIN;
             return val;
         }
@@ -285,14 +284,14 @@ public abstract class SocketBase extends Own
         }
 
         if (option_ == ZMQ.ZMQ_EVENTS) {
-            boolean rc = process_commands(0, false);
+            boolean rc = process_commands (0, false);
             if (!rc && errno.get() == ZError.ETERM)
                 return -1;
             assert (rc);
             int val = 0;
-            if (has_out())
+            if (has_out ())
                 val |= ZMQ.ZMQ_POLLOUT;
-            if (has_in())
+            if (has_in ())
                 val |= ZMQ.ZMQ_POLLIN;
             return val;
         }
@@ -485,12 +484,8 @@ public abstract class SocketBase extends Own
         boolean ipv4only = options.ipv4only != 0 ? true : false;
         Address paddr = new Address (protocol, address, ipv4only);
 
-        try {
-            //  Resolve address (if needed by the protocol)
-            paddr.resolve();
-        } catch (Exception ignored) {
-            return false;
-        }
+        //  Resolve address (if needed by the protocol)
+        paddr.resolve();
 
         //  Create session.
         SessionBase session = SessionBase.create (io_thread, true, this,
@@ -530,7 +525,7 @@ public abstract class SocketBase extends Own
     private void add_endpoint (String addr_, Own endpoint_)
     {
         //  Activate the session. Make it a child of this socket.
-        launch_child(endpoint_);
+        launch_child (endpoint_);
         endpoints.put (addr_, endpoint_);
     }
 
@@ -547,7 +542,7 @@ public abstract class SocketBase extends Own
 
         //  Process pending commands, if any, since there could be pending unprocessed process_own()'s
         //  (from launch_child() for example) we're asked to terminate now.
-        boolean rc = process_commands(0, false);
+        boolean rc = process_commands (0, false);
         if (!rc)
             return rc;
 
@@ -603,7 +598,7 @@ public abstract class SocketBase extends Own
         }
 
         //  Process pending commands, if any.
-        boolean brc = process_commands(0, true);
+        boolean brc = process_commands (0, true);
         if (!brc)
             return false;
 
@@ -631,13 +626,13 @@ public abstract class SocketBase extends Own
         //  Compute the time when the timeout should occur.
         //  If the timeout is infite, don't care.
         int timeout = options.sndtimeo;
-        long end = timeout < 0 ? 0 : (Clock.now_ms() + timeout);
+        long end = timeout < 0 ? 0 : (Clock.now_ms () + timeout);
 
         //  Oops, we couldn't send the message. Wait for the next
         //  command, process it and try to send the message again.
         //  If timeout is reached in the meantime, return EAGAIN.
         while (true) {
-            if (!process_commands(timeout, false) )
+            if (!process_commands (timeout, false) )
                 return false;
 
             rc = xsend (msg_);
@@ -648,7 +643,7 @@ public abstract class SocketBase extends Own
                 return false;
 
             if (timeout > 0) {
-                timeout = (int) (end - Clock.now_ms());
+                timeout = (int) (end - Clock.now_ms ());
                 if (timeout <= 0) {
                     errno.set(ZError.EAGAIN);
                     return false;
@@ -675,7 +670,7 @@ public abstract class SocketBase extends Own
         //  described above) from the one used by 'send'. This is because counting
         //  ticks is more efficient than doing RDTSC all the time.
         if (++ticks == Config.INBOUND_POLL_RATE.getValue()) {
-            if (!process_commands(0, false))
+            if (!process_commands (0, false))
                 return null;
             ticks = 0;
         }
@@ -687,7 +682,7 @@ public abstract class SocketBase extends Own
 
         //  If we have the message, return immediately.
         if (msg_ != null) {
-            extract_flags(msg_);
+            extract_flags (msg_);
             return msg_;
         }
 
@@ -696,27 +691,27 @@ public abstract class SocketBase extends Own
         //  activate_reader command already waiting int a command pipe.
         //  If it's not, return EAGAIN.
         if ((flags_ & ZMQ.ZMQ_DONTWAIT) > 0 || options.rcvtimeo == 0) {
-            if (!process_commands(0, false))
+            if (!process_commands (0, false))
                 return null;
             ticks = 0;
 
             msg_ = xrecv();
             if (msg_ == null)
                 return null;
-            extract_flags(msg_);
+            extract_flags (msg_);
             return msg_;
         }
 
         //  Compute the time when the timeout should occur.
         //  If the timeout is infite, don't care.
         int timeout = options.rcvtimeo;
-        long end = timeout < 0 ? 0 : (Clock.now_ms() + timeout);
+        long end = timeout < 0 ? 0 : (Clock.now_ms () + timeout);
 
         //  In blocking scenario, commands are processed over and over again until
         //  we are able to fetch a message.
         boolean block = (ticks != 0);
         while (true) {
-            if (!process_commands(block ? timeout : 0, false)) {
+            if (!process_commands (block ? timeout : 0, false)) {
                 return null;
             }
             msg_ = xrecv();
@@ -731,7 +726,7 @@ public abstract class SocketBase extends Own
 
             block = true;
             if (timeout > 0) {
-                timeout = (int) (end - Clock.now_ms());
+                timeout = (int) (end - Clock.now_ms ());
                 if (timeout <= 0) {
                     errno.set(ZError.EAGAIN);
                     return null;
@@ -739,7 +734,7 @@ public abstract class SocketBase extends Own
             }
         }
 
-        extract_flags(msg_);
+        extract_flags (msg_);
         return msg_;
 
     }
@@ -752,7 +747,7 @@ public abstract class SocketBase extends Own
         //  Transfer the ownership of the socket from this application thread
         //  to the reaper thread which will take care of the rest of shutdown
         //  process.
-        send_reap(this);
+        send_reap (this);
 
     }
 
@@ -764,7 +759,7 @@ public abstract class SocketBase extends Own
     }
 
     public boolean has_out() {
-        return xhas_out();
+        return xhas_out ();
     }
 
 
@@ -775,13 +770,13 @@ public abstract class SocketBase extends Own
         //  Plug the socket to the reaper thread.
         poller = poller_;
         handle = mailbox.get_fd();
-        poller.add_fd(handle, this);
-        poller.set_pollin(handle);
+        poller.add_fd (handle, this);
+        poller.set_pollin (handle);
 
         //  Initialise the termination and check whether it can be deallocated
         //  immediately.
         terminate ();
-        check_destroy();
+        check_destroy ();
     }
 
     //  Processes commands sent to this socket (if any). If timeout is -1,
@@ -831,7 +826,7 @@ public abstract class SocketBase extends Own
             if (cmd == null)
                 break;
 
-            cmd.destination().process_command(cmd);
+            cmd.destination().process_command (cmd);
             cmd = mailbox.recv (0);
         }
         if (ctx_terminated) {
@@ -850,7 +845,7 @@ public abstract class SocketBase extends Own
         //  We'll remember the fact so that any blocking call is interrupted and any
         //  further attempt to use the socket will return ETERM. The user is still
         //  responsible for calling zmq_close on the socket though!
-        stop_monitor();
+        stop_monitor ();
         ctx_terminated = true;
 
     }
@@ -867,15 +862,15 @@ public abstract class SocketBase extends Own
         //  Unregister all inproc endpoints associated with this socket.
         //  Doing this we make sure that no new pipes from other sockets (inproc)
         //  will be initiated.
-        unregister_endpoints(this);
+        unregister_endpoints (this);
 
         //  Ask all attached pipes to terminate.
         for (int i = 0; i != pipes.size (); ++i)
             pipes.get(i).terminate (false);
-        register_term_acks(pipes.size());
+        register_term_acks (pipes.size ());
 
         //  Continue the termination process immediately.
-        super.process_term(linger_);
+        super.process_term (linger_);
     }
 
     //  Delay actual destruction of the socket.
@@ -929,10 +924,10 @@ public abstract class SocketBase extends Own
         //  that may be available at the moment. Ultimately, the socket will
         //  be destroyed.
         try {
-            process_commands(0, false);
+            process_commands (0, false);
         } catch (ZError.CtxTerminatedException e) {}
 
-        check_destroy();
+        check_destroy ();
     }
 
     @Override
@@ -964,15 +959,15 @@ public abstract class SocketBase extends Own
         if (destroyed) {
 
             //  Remove the socket from the reaper's poller.
-            poller.rm_fd(handle);
+            poller.rm_fd (handle);
             //  Remove the socket from the context.
-            destroy_socket(this);
+            destroy_socket (this);
 
             //  Notify the reaper about the fact.
-            send_reaped();
+            send_reaped ();
 
             //  Deallocate.
-            super.process_destroy();
+            super.process_destroy ();
 
         }
     }
@@ -986,7 +981,7 @@ public abstract class SocketBase extends Own
     @Override
     public void write_activated (Pipe pipe_)
     {
-        xwrite_activated(pipe_);
+        xwrite_activated (pipe_);
     }
 
     @Override
@@ -1003,7 +998,7 @@ public abstract class SocketBase extends Own
     @Override
     public void terminated(Pipe pipe_) {
         //  Notify the specific socket type about the pipe termination.
-        xterminated(pipe_);
+        xterminated (pipe_);
 
         // Remove pipe from inproc pipes
         Iterator<Entry<String, Pipe>> it = inprocs.entrySet().iterator();
@@ -1017,7 +1012,7 @@ public abstract class SocketBase extends Own
         //  Remove the pipe from the list of attached pipes and confirm its
         //  termination if we are already shutting down.
         pipes.remove(pipe_);
-        if (is_terminating())
+        if (is_terminating ())
             unregister_term_ack ();
 
     }
@@ -1044,7 +1039,7 @@ public abstract class SocketBase extends Own
 
         // Support deregistering monitoring endpoints as well
         if (addr_ == null) {
-            stop_monitor();
+            stop_monitor ();
             return true;
         }
 
@@ -1061,27 +1056,27 @@ public abstract class SocketBase extends Own
         if (address == null)
             address = path;
 
-        check_protocol(protocol);
+        check_protocol (protocol);
 
         // Event notification only supported over inproc://
         if (!protocol.equals ("inproc")) {
-            stop_monitor();
+            stop_monitor ();
             throw new IllegalArgumentException("inproc socket required");
         }
 
         // Register events to monitor
         monitor_events = events_;
 
-        monitor_socket = get_ctx().create_socket(ZMQ.ZMQ_PAIR);
+        monitor_socket = get_ctx ().create_socket(ZMQ.ZMQ_PAIR);
         if (monitor_socket == null)
             return false;
 
         // Never block context termination on pending event messages
         int linger = 0;
         try {
-            monitor_socket.setsockopt(ZMQ.ZMQ_LINGER, linger);
+            monitor_socket.setsockopt (ZMQ.ZMQ_LINGER, linger);
         } catch (IllegalArgumentException e) {
-            stop_monitor();
+            stop_monitor ();
             throw e;
         }
 
@@ -1097,7 +1092,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_CONNECTED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_CONNECTED, addr, ch));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_CONNECTED, addr, ch));
     }
 
     public void event_connect_delayed (String addr, int errno)
@@ -1105,7 +1100,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_CONNECT_DELAYED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_CONNECT_DELAYED, addr, errno));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_CONNECT_DELAYED, addr, errno));
     }
 
     public void event_connect_retried (String addr, int interval)
@@ -1113,7 +1108,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_CONNECT_RETRIED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_CONNECT_RETRIED, addr, interval));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_CONNECT_RETRIED, addr, interval));
     }
 
     public void event_listening (String addr, SelectableChannel ch)
@@ -1121,7 +1116,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_LISTENING) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_LISTENING, addr, ch));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_LISTENING, addr, ch));
     }
 
     public void event_bind_failed (String addr, int errno)
@@ -1129,7 +1124,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_BIND_FAILED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_BIND_FAILED, addr, errno));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_BIND_FAILED, addr, errno));
     }
 
     public void event_accepted (String addr, SelectableChannel ch)
@@ -1137,7 +1132,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_ACCEPTED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_ACCEPTED, addr, ch));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_ACCEPTED, addr, ch));
     }
 
     public void event_accept_failed (String addr, int errno)
@@ -1145,7 +1140,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_ACCEPT_FAILED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_ACCEPT_FAILED, addr, errno));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_ACCEPT_FAILED, addr, errno));
     }
 
     public void event_closed (String addr, SelectableChannel ch)
@@ -1153,7 +1148,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_CLOSED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_CLOSED, addr, ch));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_CLOSED, addr, ch));
     }
 
     public void event_close_failed (String addr, int errno)
@@ -1161,7 +1156,7 @@ public abstract class SocketBase extends Own
         if ((monitor_events & ZMQ.ZMQ_EVENT_CLOSE_FAILED) == 0)
             return;
 
-        monitor_event(new ZMQ.Event(ZMQ.ZMQ_EVENT_CLOSE_FAILED, addr, errno));
+        monitor_event (new ZMQ.Event (ZMQ.ZMQ_EVENT_CLOSE_FAILED, addr, errno));
     }
 
     public void event_disconnected (String addr, SelectableChannel ch)
