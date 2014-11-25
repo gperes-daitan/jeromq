@@ -79,7 +79,7 @@ public class TcpConnecter extends Own implements IPollEvents {
 
         assert (addr != null);
         address = addr;
-        socket = session_.get_soket ();
+        socket = session_.get_soket();
     }
 
     public void destroy ()
@@ -96,7 +96,7 @@ public class TcpConnecter extends Own implements IPollEvents {
         if (delayed_start)
             add_reconnect_timer();
         else {
-            start_connecting ();
+            start_connecting();
         }
     }
 
@@ -104,19 +104,19 @@ public class TcpConnecter extends Own implements IPollEvents {
     public void process_term (int linger_)
     {
         if (timer_started) {
-            io_object.cancel_timer (reconnect_timer_id);
+            io_object.cancel_timer(reconnect_timer_id);
             timer_started = false;
         }
 
         if (handle_valid) {
-            io_object.rm_fd (handle);
+            io_object.rm_fd(handle);
             handle_valid = false;
         }
 
         if (handle != null)
             close ();
 
-        super.process_term (linger_);
+        super.process_term(linger_);
     }
 
     @Override
@@ -153,7 +153,7 @@ public class TcpConnecter extends Own implements IPollEvents {
             throw new ZError.IOException(e);
         }
 
-        io_object.rm_fd (handle);
+        io_object.rm_fd(handle);
         handle_valid = false;
 
         if (err) {
@@ -167,8 +167,8 @@ public class TcpConnecter extends Own implements IPollEvents {
 
         try {
 
-            Utils.tune_tcp_socket (fd);
-            Utils.tune_tcp_keepalives (fd, options.tcp_keepalive, options.tcp_keepalive_cnt, options.tcp_keepalive_idle, options.tcp_keepalive_intvl);
+            Utils.tune_tcp_socket(fd);
+            Utils.tune_tcp_keepalives(fd, options.tcp_keepalive, options.tcp_keepalive_cnt, options.tcp_keepalive_idle, options.tcp_keepalive_intvl);
         } catch (SocketException e) {
             throw new RuntimeException(e);
         }
@@ -178,12 +178,12 @@ public class TcpConnecter extends Own implements IPollEvents {
         try {
             engine = new StreamEngine (fd, options, address.toString());
         } catch (ZError.InstantiationException e) {
-            socket.event_connect_delayed (address.toString(), -1);
+            socket.event_connect_delayed(address.toString(), -1);
             return;
         }
 
         //  Attach the engine to the corresponding session object.
-        send_attach (session, engine);
+        send_attach(session, engine);
 
         //  Shut the connecter down.
         terminate ();
@@ -194,7 +194,7 @@ public class TcpConnecter extends Own implements IPollEvents {
     @Override
     public void timer_event(int id_) {
         timer_started = false;
-        start_connecting ();
+        start_connecting();
     }
 
     //  Internal function to start the actual connection establishment.
@@ -207,17 +207,17 @@ public class TcpConnecter extends Own implements IPollEvents {
 
             //  Connect may succeed in synchronous manner.
             if (rc) {
-                io_object.add_fd (handle);
+                io_object.add_fd(handle);
                 handle_valid = true;
                 io_object.connect_event();
             }
 
             //  Connection establishment may be delayed. Poll for its completion.
             else {
-                io_object.add_fd (handle);
+                io_object.add_fd(handle);
                 handle_valid = true;
-                io_object.set_pollconnect (handle);
-                socket.event_connect_delayed (address.toString(), -1);
+                io_object.set_pollconnect(handle);
+                socket.event_connect_delayed(address.toString(), -1);
             }
         } catch (IOException e) {
             //  Handle any other error condition by eventual reconnect.
@@ -233,9 +233,15 @@ public class TcpConnecter extends Own implements IPollEvents {
         int rc_ivl = get_new_reconnect_ivl();
         io_object.add_timer(rc_ivl, reconnect_timer_id);
 
-        // resolve address again to take into account other addresses
-        // besides the failing one (e.g. multiple dns entries).
-        address.resolve();
+        try {
+            // resolve address again to take into account other addresses
+            // besides the failing one (e.g. multiple dns entries).
+            address.resolve();
+        } catch (Exception ignored) {
+            // This will fail if the network goes away and the
+            // address cannot be resolved for some reason. Try
+            // not to fail as the event loop will quit
+        }
 
         socket.event_connect_retried(address.toString(), rc_ivl);
         timer_started = true;
@@ -248,7 +254,7 @@ public class TcpConnecter extends Own implements IPollEvents {
     {
         //  The new interval is the current interval + random value.
         int this_interval = current_reconnect_ivl +
-            (Utils.generate_random () % options.reconnect_ivl);
+            (Utils.generate_random() % options.reconnect_ivl);
 
         //  Only change the current reconnect interval  if the maximum reconnect
         //  interval was set and if it's larger than the reconnect interval.
@@ -300,9 +306,9 @@ public class TcpConnecter extends Own implements IPollEvents {
         assert (handle != null);
         try {
             handle.close();
-            socket.event_closed (address.toString(), handle);
+            socket.event_closed(address.toString(), handle);
         } catch (IOException e) {
-            socket.event_close_failed (address.toString(), ZError.exccode(e));
+            socket.event_close_failed(address.toString(), ZError.exccode(e));
         }
         handle = null;
     }
